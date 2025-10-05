@@ -16,6 +16,22 @@ var (
 		"frozen": func(o Options) (Clock, error) {
 			return (&Builder{}).Apply(WithStrategy(StrategyFrozen), WithFrozenTime(o.FrozenTime)).Build(), nil
 		},
+		"offset": func(o Options) (Clock, error) {
+			return (&Builder{}).Apply(WithOffset(o.Offset)).Build(), nil
+		},
+		"jitter": func(o Options) (Clock, error) {
+			return (&Builder{}).Apply(WithJitter(o.Jitter), WithJitterSeed(o.JitterSeed)).Build(), nil
+		},
+		"compose": func(o Options) (Clock, error) {
+			// Compose system/frozen + optional offset + jitter (with optional seed).
+			return (&Builder{}).Apply(
+				WithStrategy(o.Strategy),
+				WithFrozenTime(o.FrozenTime),
+				WithOffset(o.Offset),
+				WithJitter(o.Jitter),
+				WithJitterSeed(o.JitterSeed),
+			).Build(), nil
+		},
 	}
 )
 

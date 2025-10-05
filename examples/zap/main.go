@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	clk := xclock.Default()
+	clock := xclock.Default()
 
 	encCfg := zap.NewProductionEncoderConfig()
 	core := zapcore.NewCore(
@@ -19,8 +19,12 @@ func main() {
 		zap.InfoLevel,
 	)
 
-	log := zap.New(core, zap.WithClock(zapclock.New(clk)))
-	defer log.Sync()
+	log := zap.New(core, zap.WithClock(zapclock.New(clock)))
+	defer func(log *zap.Logger) {
+		if err := log.Sync(); err != nil {
+			panic(err)
+		}
+	}(log)
 
 	log.Info("hello with xclock time")
 }

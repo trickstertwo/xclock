@@ -5,26 +5,31 @@ import (
 	"time"
 )
 
+// Baseline: stdlib time.Now
 func BenchmarkTimeNow(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = time.Now()
 	}
 }
 
-func BenchmarkNowFacadeSystem(b *testing.B) {
-	// Ensure system fast-path
+// Facade fast-path (branchless, function pointers)
+func BenchmarkNowFacade_System(b *testing.B) {
 	orig := Default()
 	defer SetDefault(orig)
-	SetDefault(orig) // if system, binds stdlib
+	// Ensure system fast-path is bound (stdlib direct)
+	SetDefault(standardSystemClock)
 
+	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = Now()
 	}
 }
 
-func BenchmarkNowInjectedClock(b *testing.B) {
+// Injected clock avoids even the atomic pointer load in facade.
+func BenchmarkNowInjected(b *testing.B) {
 	c := Default()
+	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = c.Now()
