@@ -2,6 +2,6 @@ module github.com/trickstertwo/xclock/adapters/slogclock
 
 go 1.25
 
-require github.com/trickstertwo/xclock v0.0.0
+require github.com/trickstertwo/xclock v0.0.2
 
-replace github.com/trickstertwo/xclock => ../..
+//replace github.com/trickstertwo/xclock => ../..
