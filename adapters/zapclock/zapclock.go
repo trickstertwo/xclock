@@ -28,6 +28,7 @@ func New(c xclock.Clock) zapcore.Clock {
 func (z *clockAdapter) Now() time.Time { return z.c.Now() }
 
 // Zap's Clock also has NewTicker returning *time.Ticker; we provide stdlib ticker.
+
 func (z *clockAdapter) NewTicker(d time.Duration) *time.Ticker {
 	return time.NewTicker(d)
 }

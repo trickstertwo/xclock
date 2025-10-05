@@ -1,59 +1,72 @@
 package xclock
 
-import "time"
+import (
+	"sync/atomic"
+	"time"
+)
 
-// Facade: simplified global API with a fast-path.
-// When the default clock is the standard system clock, we avoid the atomic.Value load
-// and interface dispatch entirely by calling the stdlib directly. This is controlled
-// by system, which is updated in SetDefault.
-
-func Now() time.Time {
-	if system.Load() {
-		return time.Now()
-	}
-	return Default().Now()
+// facadeFns holds pre-bound function pointers for the facade.
+// We atomically swap a pointer to this struct in SetDefault, so facade calls
+// are branchless: a single atomic load + direct function call.
+type facadeFns struct {
+	now       func() time.Time
+	since     func(time.Time) time.Duration
+	sleep     func(time.Duration)
+	after     func(time.Duration) <-chan time.Time
+	afterFunc func(time.Duration, func()) CancelFunc
+	newTimer  func(time.Duration) Timer
+	newTicker func(time.Duration) Ticker
 }
 
-func Since(t time.Time) time.Duration {
-	if system.Load() {
-		return time.Since(t)
+var fns atomic.Pointer[facadeFns]
+
+// initFacadeFns sets fast-path to stdlib (system clock).
+func initFacadeFns() {
+	sys := &facadeFns{
+		now:   time.Now,
+		since: time.Since,
+		sleep: time.Sleep,
+		after: time.After,
+		afterFunc: func(d time.Duration, f func()) CancelFunc {
+			t := time.AfterFunc(d, f)
+			return t.Stop
+		},
+		newTimer:  func(d time.Duration) Timer { return &stdTimer{t: time.NewTimer(d)} },
+		newTicker: func(d time.Duration) Ticker { return &stdTicker{t: time.NewTicker(d)} },
 	}
-	return Default().Since(t)
+	fns.Store(sys)
 }
 
-func Sleep(d time.Duration) {
-	if system.Load() {
-		time.Sleep(d)
+// updateFacadeFns binds the facade to either direct stdlib calls (system)
+// or to the provided Clock's methods (non-system). Called from init and SetDefault.
+func updateFacadeFns(c Clock) {
+	if c == standardSystemClock {
+		initFacadeFns()
 		return
 	}
-	Default().Sleep(d)
+	g := &facadeFns{
+		now:       c.Now,
+		since:     c.Since,
+		sleep:     c.Sleep,
+		after:     c.After,
+		afterFunc: c.AfterFunc,
+		newTimer:  c.NewTimer,
+		newTicker: c.NewTicker,
+	}
+	fns.Store(g)
 }
 
+// Facade: branchless calls via function pointers.
+// Cost per call: one atomic pointer load + a function call.
+
+func Now() time.Time                  { return fns.Load().now() }
+func Since(t time.Time) time.Duration { return fns.Load().since(t) }
+func Sleep(d time.Duration)           { fns.Load().sleep(d) }
 func After(d time.Duration) <-chan time.Time {
-	if system.Load() {
-		return time.After(d)
-	}
-	return Default().After(d)
+	return fns.Load().after(d)
 }
-
 func AfterFunc(d time.Duration, f func()) CancelFunc {
-	if system.Load() {
-		t := time.AfterFunc(d, f)
-		return t.Stop
-	}
-	return Default().AfterFunc(d, f)
+	return fns.Load().afterFunc(d, f)
 }
-
-func NewTimer(d time.Duration) Timer {
-	if system.Load() {
-		return &stdTimer{t: time.NewTimer(d)}
-	}
-	return Default().NewTimer(d)
-}
-
-func NewTicker(d time.Duration) Ticker {
-	if system.Load() {
-		return &stdTicker{t: time.NewTicker(d)}
-	}
-	return Default().NewTicker(d)
-}
+func NewTimer(d time.Duration) Timer   { return fns.Load().newTimer(d) }
+func NewTicker(d time.Duration) Ticker { return fns.Load().newTicker(d) }

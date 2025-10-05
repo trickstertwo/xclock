@@ -5,39 +5,36 @@ import (
 	"time"
 )
 
-// Singleton: global default clock with atomic access.
+// We store a stable wrapper type in atomic.Value to avoid type-mismatch panics.
+type clockValue struct {
+	c Clock
+}
 
 var (
-	defaultClock atomic.Value // holds Clock
-	system       atomic.Bool  // true when Default() is the standard system clock
+	defaultClock atomic.Value // holds clockValue
 )
 
 func init() {
-	defaultClock.Store(standardSystemClock)
-	system.Store(true) // we start with the system clock
+	defaultClock.Store(clockValue{c: standardSystemClock})
+	initFacadeFns() // bind facade to stdlib fast-path initially
 }
 
 // Default returns the process-wide default Clock.
-// Note: On hot paths, prefer the top-level Facade functions (Now/Sleep/etc.) which
-// automatically fast-path the system clock, or capture Default() once at the call site.
 func Default() Clock {
-	c := defaultClock.Load()
-	if c == nil {
+	v := defaultClock.Load()
+	if v == nil {
 		return standardSystemClock
 	}
-	return c.(Clock)
+	return v.(clockValue).c
 }
 
-// SetDefault replaces the process-wide default Clock.
-// Safe for concurrent readers. Prefer using only in main/init/tests.
+// SetDefault replaces the process-wide default Clock and rebinds the facade.
 func SetDefault(c Clock) {
 	if c == nil {
 		panic("xclock: SetDefault with nil Clock")
 	}
-	defaultClock.Store(c)
-	// Update fast-path flag. Pointer equality is intentional: we only fast-path
-	// when the exact singleton standardSystemClock is active.
-	system.Store(c == standardSystemClock)
+	defaultClock.Store(clockValue{c: c})
+	updateFacadeFns(c)
 }
 
 // NewFrozen returns a frozen clock at t.

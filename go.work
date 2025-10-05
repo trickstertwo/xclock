@@ -5,5 +5,3 @@ use (
 	./adapters/zapclock
 	./adapters/slogclock
 )
-
-replace github.com/trickstertwo/xclock => .
