@@ -1,4 +1,4 @@
-module slogclock
+module github.com/trickstertwo/xclock/adapters/slogclock
 
 go 1.25
 

@@ -1,4 +1,4 @@
-module zapclock
+module github.com/trickstertwo/xclock/adapters/zapclock
 
 go 1.25
 
