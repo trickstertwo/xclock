@@ -2,9 +2,6 @@
 
 High-performance, modular clock framework for Go. Zero-alloc, branchless facade with pluggable strategies and logging adapters.
 
-One-liner description (for repo About):
-“xclock: branchless, dependency-injected clock framework with pluggable strategies and adapters for zap/slog”
-
 ## Why xclock
 
 - Dependability
