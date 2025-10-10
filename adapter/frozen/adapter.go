@@ -12,10 +12,33 @@ type Config struct {
 	Time time.Time
 }
 
+// Set sets the frozen clock as the process-wide default and returns a restore
+// function that reverts to the previous default when called.
+// Recommended in tests and examples:
+//
+//	restore := frozen.Use(frozen.Config{Time: t})
+//	defer restore()
+func Set(cfg Config) (restore func()) {
+	prev := xclock.Default()
+	xclock.SetDefault(New(cfg.Time))
+	return func() { xclock.SetDefault(prev) }
+}
+
+// Use applies the frozen clock without returning a restore function.
+// Recommended in production mains where you never intend to restore.
 func Use(cfg Config) {
 	xclock.SetDefault(New(cfg.Time))
 }
 
+// With runs fn with the frozen clock active, then restores the previous clock
+// even if fn panics (restore still runs during unwinding).
+func With(cfg Config, fn func()) {
+	restore := Set(cfg)
+	defer restore()
+	fn()
+}
+
+// New constructs a frozen Clock instance at t.
 func New(t time.Time) xclock.Clock {
 	return &clock{t: t}
 }
