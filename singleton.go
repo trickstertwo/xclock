@@ -2,7 +2,6 @@ package xclock
 
 import (
 	"sync/atomic"
-	"time"
 )
 
 // We store a stable wrapper type in atomic.Value to avoid type-mismatch panics.
@@ -15,8 +14,9 @@ var (
 )
 
 func init() {
+	// Initialize facade to stdlib fast-path and Default() to std clock.
+	initFacadeFns()
 	defaultClock.Store(clockValue{c: standardSystemClock})
-	initFacadeFns() // bind facade to stdlib fast-path initially
 }
 
 // Default returns the process-wide default Clock.
@@ -36,6 +36,3 @@ func SetDefault(c Clock) {
 	defaultClock.Store(clockValue{c: c})
 	updateFacadeFns(c)
 }
-
-// NewFrozen returns a frozen clock at t.
-func NewFrozen(t time.Time) Clock { return &frozenClock{t: t} }

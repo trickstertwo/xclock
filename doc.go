@@ -1,39 +1,36 @@
-// Package xclock provides a high-performance, dependency-injected clock framework
-// designed for modular Go systems.
+// Package xclock provides a dependable, minimal, and stable clock facade
+// for Go applications. It exposes a small Strategy interface (Clock) plus
+// branchless facade functions (Now/Sleep/After/AfterFunc/NewTimer/NewTicker)
+// and keeps the platform layer wrapped.
 //
-// Goals
-// - Dependability: Zero-GC hot path, race-free, testable, production-safe.
-// - Extendability: Strategy-driven clock sources; plugin registry; adapters.
-// - Team scalability: Small surface, clear responsibilities, black-box modules.
-// - Development velocity: Simple Facade API, functional options, sane defaults.
-// - Risk reduction: Platform layer wrapped; swapping strategies/hardware safe.
+// Architecture (no circular deps)
+//   - Core (this package): interfaces, singleton (Default/SetDefault), facade,
+//     helpers, and observer. It does NOT know about concrete clocks.
+//   - Adapters (submodules under adapter/...): implement xclock.Clock and expose
+//     a Use(Config) function to SetDefault(...) explicitly, mirroring xlog.
 //
-// Design patterns used
-// 1. Singleton: Default() global clock instance via atomic swap.
-// 2. Builder: NewBuilder() with functional options → Build().
-// 3. Factory: Registry NewFromFactory(name, ...Option) to construct clocks.
-// 4. Facade: Top-level functions Now/Sleep/After delegate to Default().
-// 5. Adapter: Subpackages in adapters/ integrate with logging ecosystems.
-// 6. Strategy: Multiple clock implementations (system, frozen).
-// 7. Observer: ObservableTicker notifies subscribers on ticks.
-//
-// Performance notes
-// - Global clock stored in atomic.Value for lock-free reads.
-// - System clock uses stdlib time primitives directly.
-// - No generics or reflection in hot paths.
-// - ObservableTicker is opt-in; no background goroutines unless used.
-//
-// Thread safety
-// - All exported implementations are safe for concurrent use.
+// Design patterns
+// 1) Singleton  – Default()/SetDefault().
+// 2) Builder    – adapter/compose.Use(...) composes base + layers.
+// 3) Factory    – adapter packages expose New(...) / Use(...).
+// 4) Facade     – xclock.Now()/Sleep()/After()... are branchless to the current Clock.
+// 5) Adapter    – adapter/* translate concrete time providers to xclock.Clock.
+// 6) Strategy   – Clock is the swappable algorithm for time source.
+// 7) Observer   – ObservableTicker to fan-out tick notifications.
 //
 // Usage
 //
-//	// Use defaults
+//	// 1) Choose an adapter explicitly (no env magic, no blank-imports).
+//	//    Example: compose system base + offset + jitter.
+//	compose.Use(compose.Config{
+//	    Strategy:   compose.StrategySystem,
+//	    Offset:     50 * time.Millisecond,
+//	    Jitter:     2 * time.Millisecond,
+//	    JitterSeed: 12345,
+//	})
+//
+//	// 2) Call the facade anywhere in your code.
 //	t := xclock.Now()
-//
-//	// Swap default clock (e.g., in tests)
-//	xclock.SetDefault(xclock.NewFrozen(time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)))
-//
-//	// Use with zap
-//	logger := zap.New(zapcore.NewCore(...), zap.WithClock(adapterszap.New(xclock.Default())))
+//	xclock.Sleep(10 * time.Millisecond)
+//	ch := xclock.After(5 * time.Millisecond)
 package xclock

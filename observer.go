@@ -52,7 +52,6 @@ func (o *observableTicker) run() {
 			o.mu.RLock()
 			for s := range o.subs {
 				// Best-effort, non-blocking via goroutine to isolate observers.
-				// Keeps core clock path fast and dependable.
 				s := s
 				tt := t
 				go s.OnTick(tt)

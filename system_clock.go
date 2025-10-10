@@ -35,3 +35,7 @@ type stdTimer struct{ t *time.Timer }
 func (t *stdTimer) C() <-chan time.Time        { return t.t.C }
 func (t *stdTimer) Stop() bool                 { return t.t.Stop() }
 func (t *stdTimer) Reset(d time.Duration) bool { return t.t.Reset(d) }
+
+// System returns the stdlib-backed system clock. Useful for adapters that want
+// to explicitly select a system base without importing any adapter.
+func System() Clock { return standardSystemClock }

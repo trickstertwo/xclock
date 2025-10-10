@@ -7,7 +7,7 @@ import (
 
 // facadeFns holds pre-bound function pointers for the facade.
 // We atomically swap a pointer to this struct in SetDefault, so facade calls
-// are branchless: a single atomic load + direct function call.
+// are narrowly on the hot path: a single atomic load + direct function call.
 type facadeFns struct {
 	now       func() time.Time
 	since     func(time.Time) time.Duration
@@ -20,7 +20,7 @@ type facadeFns struct {
 
 var fns atomic.Pointer[facadeFns]
 
-// initFacadeFns sets fast-path to stdlib (system clock).
+// initFacadeFns sets fast-path to stdlib (system clock) without requiring adapters.
 func initFacadeFns() {
 	sys := &facadeFns{
 		now:   time.Now,
@@ -37,13 +37,8 @@ func initFacadeFns() {
 	fns.Store(sys)
 }
 
-// updateFacadeFns binds the facade to either direct stdlib calls (system)
-// or to the provided Clock's methods (non-system). Called from init and SetDefault.
+// updateFacadeFns binds the facade to the provided Clock's methods.
 func updateFacadeFns(c Clock) {
-	if c == standardSystemClock {
-		initFacadeFns()
-		return
-	}
 	g := &facadeFns{
 		now:       c.Now,
 		since:     c.Since,
@@ -57,7 +52,6 @@ func updateFacadeFns(c Clock) {
 }
 
 // Facade: branchless calls via function pointers.
-// Cost per call: one atomic pointer load + a function call.
 
 func Now() time.Time                  { return fns.Load().now() }
 func Since(t time.Time) time.Duration { return fns.Load().since(t) }

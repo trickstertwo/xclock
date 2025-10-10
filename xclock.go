@@ -1,8 +1,6 @@
 package xclock
 
-import (
-	"time"
-)
+import "time"
 
 // CancelFunc mirrors time.Timer.Stop semantics when used by AfterFunc.
 // It returns true if the timer was active before the call.
