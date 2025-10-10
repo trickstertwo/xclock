@@ -9,12 +9,9 @@ import (
 )
 
 func main() {
-	old := xclock.Default()
-	defer xclock.SetDefault(old)
-
 	// Deterministic clock for tests/demos.
 	frozen.Use(frozen.Config{
-		Time: time.Date(2030, 2, 3, 4, 5, 6, 7, time.UTC),
+		Time: time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC),
 	})
 
 	fmt.Println("== frozen example ==")
