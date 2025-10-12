@@ -11,7 +11,7 @@ import (
 // respective time sources (time.Now vs xclock.Now).
 func main() {
 	d := 10 * time.Millisecond
-	n := 100000
+	n := 1000
 
 	fmt.Printf("Comparing sleep for %s over %d iterations\n", d, n)
 
